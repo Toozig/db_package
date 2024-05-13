@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-from global_db_args import MODEL_TABLE
+from ..global_db_args import MODEL_TABLE
 import subprocess
 from Bio import SeqIO
 from random import shuffle
@@ -13,10 +13,14 @@ SUBMISSION_DIR = os.path.join(script_dir, 'Leaderboard_aaa_submissions')
 CATEGORY_FILE = os.path.join(SUBMISSION_DIR, "%s_aaa_random.tsv")
 
 HG38_ZIP_PATH =  '/dsi/gonen-lab/shared_files/WGS_on_DSD/data/refrence_genome/hg38/hg38.fa.gz'
+MM10_ZIP_PATH =  '/dsi/gonen-lab/shared_files/WGS_on_DSD/data/refrence_genome/mm10/GCA_000001635.8_GRCm38.p6_genomic.fna.gz'
 HG38_PATH = '/tmp/toozig/hg38.fa'
+MM10_PATH = '/dsi/gonen-lab/shared_files/WGS_on_DSD/data/refrence_genome/mm10/mm10.fa'
 
-GENOME_DICT = {'hg38': HG38_PATH}
-ZIPPED_GENOME_DICT = {'hg38': HG38_ZIP_PATH}
+GENOME_DICT = {'hg38': HG38_PATH,
+               'mm10': MM10_PATH}
+ZIPPED_GENOME_DICT = {'hg38': HG38_ZIP_PATH,
+                      'mm10': MM10_ZIP_PATH}
 
 
 
@@ -35,7 +39,9 @@ def bed_to_fasta(fatsa_path, bed_path, output_path, name_flag='-name', **kwargs)
     flags = list(kwargs.keys())
     # Define the command as a list of arguments
     command = ["bedtools", "getfasta", "-name", "-fi", fatsa_path, "-bed", bed_path, "-fo", output_path] + flags
+    print('\n\n\n\n-------------------------------')
     print('running command:', ' '.join(command))
+    print('\n\n\n\n-------------------------------')
     subprocess.run(command, check=True)
     return output_path
 
@@ -44,25 +50,28 @@ def bed_to_fasta(fatsa_path, bed_path, output_path, name_flag='-name', **kwargs)
 def __open_peak_file(bed_path,):
     header = pd.read_csv(bed_path, sep='\t', nrows=1)
     header = header.columns.str.strip()
-    bed_df = pd.read_csv(bed_path, sep='\t', header=None, comment='#', names=header)
+    bed_df = pd.read_csv(bed_path, sep='\t', comment='#')
+    bed_df.columns  = header
     return bed_df
 
-def __save_bed_file(bed_df, bed_path, output_dir, start, end, name_col, prefix=''):
+def __save_bed_file(bed_df, bed_path, output_dir, start, end, name_col,padding, prefix=''):
     # use the nname col as id else generate by index and bed file name
     alt_name = bed_path.split('/')[-1].split('.')[0] + '_' + bed_df.index.astype(str)
     names = alt_name if not len(name_col) > 0 else bed_df[name_col]
     new_bed_df = {'chr': bed_df.iloc[:,0], 'start': start, 'end': end, 'name': names}
     new_bed_df = pd.DataFrame(new_bed_df)
-    output_name = bed_path.split('/')[-1].split('.')[0] + prefix +'.bed'
+    output_name = bed_path.split('/')[-1].split('.')[0] + prefix +f'_{padding}bp.bed'
     output_path = os.path.join(output_dir, output_name)
     new_bed_df.to_csv(output_path, sep='\t', index=False, header=False)
+    # filter out na and empty names
+    new_bed_df = new_bed_df.dropna()
     return output_path
 
-def get_bed(peak_file, output_dir,name_col=''):
+def get_bed(peak_file, output_dir,padding,name_col=''):
     peak_df = __open_peak_file(peak_file)
     start = peak_df['START']
     end = peak_df['END']
-    return __save_bed_file(peak_df, peak_file, output_dir, start, end, name_col, '')
+    return __save_bed_file(peak_df, peak_file, output_dir, start, end, name_col, padding,'')
 
 def get_centered_bed(bed_path,output_dir,center_col = '',name_col='', padding=100):
     """
@@ -72,39 +81,27 @@ def get_centered_bed(bed_path,output_dir,center_col = '',name_col='', padding=10
     """
     bed_df = __open_peak_file(bed_path)
     center = bed_df[center_col] if len(center_col) > 0 else (bed_df['start'] + bed_df['end']) // 2
-    start = center - padding
+    start = center.astype(int) - padding
     end = center + padding
-    return __save_bed_file(bed_df, bed_path, output_dir, start, end, name_col, '_centered')
-    # names = bed_df[name_col] if len(name_col) > 0 else None
-
-    # new_bed_df = {'chr': bed_df.iloc[:,0], 'start': start, 'end': end, 'name': bed_df[name_col]}
-    # if name_col is not None:
-    #     new_bed_df['name'] = names
-    # new_bed_df = pd.DataFrame(new_bed_df)
-    # output_name = bed_path.split('/')[-1].split('.')[0] + '_centered.bed'
-    # output_path = os.path.join(output_dir, output_name)
-    # new_bed_df.to_csv(output_path, sep='\t', index=False, header=False)
-    # return output_path
+    return __save_bed_file(bed_df, bed_path, output_dir, start, end, name_col,padding, '_centered')
 
 
 
-def get_fasta_from_bed(bed_path, output_dir, genome='hg38'):
+def get_fasta_from_bed(bed_path, output_dir, padding,genome='hg38'):
     """
     return a path to fasta file from a bed file, got HG38 genome
     """
-    output_name = bed_path.split('/')[-1].replace('.bed', '.fa')
+
+    padding =str(padding)  +'bp_'  
+    output_name = padding + bed_path.split('/')[-1].replace('.bed', '.fa')
     output_path = os.path.join(output_dir, output_name)
-    if os.path.exists(output_path):
-        return output_path
     genome_fasta = GENOME_DICT.get(genome, None)
+
     if genome_fasta is None:
         raise ValueError(f'Genome {genome} not supported')
 
-    if os.path.exists(genome_fasta):
-        # unzip the zipped file into the tmp directory
-        with open(genome_fasta, 'w') as f:
-            subprocess.run(['zcat', ZIPPED_GENOME_DICT[genome]], stdout=f)
-    return bed_to_fasta(HG38_PATH, bed_path, output_path)
+    bed_to_fasta(genome_fasta, bed_path, output_path)
+    return output_path
 
 
 def shuffle_string(s):
@@ -113,7 +110,7 @@ def shuffle_string(s):
     return ''.join(s_list)
 
 
-def create_negative_from_fasta(path_to_fasta):
+def negative_shuffle(path_to_fasta, **kwargs):
     """
     Creates a negative (shuffled sequences) version of a FASTA file.
 

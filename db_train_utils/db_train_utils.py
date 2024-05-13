@@ -1,5 +1,6 @@
 import re
 import numpy as np
+from Bio import SeqIO
 
 def is_valid_dna_sequence(sequence):
     pattern = re.compile('^[AGCTN]+$')
@@ -7,6 +8,13 @@ def is_valid_dna_sequence(sequence):
         return False
     return True
 	# assert pattern.match(str(sequence)), f"Invalid DNA sequence - {sequence}! DNA sequence can only contain A, G, C, T"
+
+def get_input_shape_from_fasta(fasta_path):
+    # read one sequence to get the shape
+    fasta_sequences = SeqIO.parse(open(fasta_path), 'fasta')
+    seq = next(fasta_sequences)
+    return len(seq.seq), 4
+
 
 
 def oneHot_encode(record):

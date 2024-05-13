@@ -1,12 +1,16 @@
 import numpy as np
 import pandas as pd
 import concurrent.futures
+import os
+## set the sworkdir tto the file folder
+os.chdir(os.path.dirname(__file__))
 
 from .run_general import get_subsequences, fasta_from_seq_string, get_model_df
 from .IB_function import get_IB_model_prediction, get_input_shape, process_IB_results
 from ..db_train_utils import oneHot_encode
 from .original_function import get_original_model_prediction, save_model_list
 from .process_P2 import aggregate_postion_score 
+
 TMP_DIR = '/tmp/toozig/'
 N_PROCESS=60
 
@@ -70,20 +74,66 @@ def get_RT_original_predictions(model_df, seq, shift, seq_id='', window=16):
     result = pd.DataFrame(aggregate.T, columns=result_df.columns)
     return result
 
-def get_RT_prediction(protein_list,seq, shift, seq_id=''):
-    # get the model list
+import os
+
+
+def get_cached_prediction(seq_id)->pd.DataFrame:
+    path = f'cached_predictions/{seq_id}.pkl'
+    if os.path.exists(path):
+        return pd.read_pickle(path)
+    return pd.DataFrame()
+    
+def save_cached_prediction(df, seq_id):
+    if len(seq_id):
+        path = f'cached_predictions/{seq_id}.pkl'
+        df.to_pickle(path)
+
+def get_RT_prediction(protein_list, seq, shift, seq_id=''):
+    # Get the cached prediction
+    cached_df = get_cached_prediction(seq_id)
+
+    # Get the available and non-available models
     avilable_models, nonavilable_models = get_model_df(protein_list)
-    IB_models = avilable_models[avilable_models.source == 'IB_generated']
-    original_models = avilable_models[avilable_models.source == 'db_original']
+
+    # Filter the cached_df to only include columns that are in available_models
+    is_in_available_models = cached_df.columns.isin(avilable_models.id)
+    cached_df = cached_df[cached_df.columns[is_in_available_models]]
+
+    # Get the IB_generated models that are not in cached_df
+    is_IB_generated = avilable_models.source == 'IB_generated'
+    IB_models = avilable_models[is_IB_generated]
+    is_in_cached_df = IB_models.id.isin(cached_df.columns)
+    IB_models = IB_models[~is_in_cached_df]
+
+    # Get the db_original models that are not in cached_df
+    is_db_original = avilable_models.source == 'db_original'
+    original_models = avilable_models[is_db_original]
+    is_in_cached_df = original_models.id.isin(cached_df.columns)
+    original_models = original_models[~is_in_cached_df]
+
     print(f'proteins: {protein_list}, dtype = {type(protein_list)}')
-    # IB_result = get_RT_IB_predictions(IB_models, seq, shift)
-    # original_result = get_RT_original_predictions(original_models, seq, shift, seq_id)
-    # df =  pd.concat([IB_result, original_result], axis=1)
+
+    # Use a ProcessPoolExecutor to get the IB and original predictions
     with concurrent.futures.ProcessPoolExecutor(max_workers=2) as executor:
-        IB_result = executor.submit(get_RT_IB_predictions, IB_models, seq, shift)
-        original_result = executor.submit(get_RT_original_predictions, original_models, seq, shift, seq_id)
-        df =  pd.concat([IB_result.result(), original_result.result()], axis=1)
+        IB_result = get_predictions(executor, get_RT_IB_predictions, IB_models, seq, shift)
+        original_result = get_predictions(executor, get_RT_original_predictions, original_models, seq, shift, seq_id)
+
+    # Concatenate the results and the cached_df
+    df = pd.concat([IB_result, original_result, cached_df], axis=1)
+
+    # Save the cached prediction if any change accured and return the DataFrame
+    if len(original_models) or len(IB_models):
+        save_cached_prediction(df, seq_id)
     return df
+
+def get_predictions(executor, prediction_function, models, seq, shift, seq_id=None):
+    if len(models) > 0:
+        if seq_id:
+            return executor.submit(prediction_function, models, seq, shift, seq_id).result()
+        else:
+            return executor.submit(prediction_function, models, seq, shift).result()
+    else:
+        return pd.DataFrame()
 
 
 

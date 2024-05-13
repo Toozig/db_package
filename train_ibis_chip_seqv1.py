@@ -27,7 +27,7 @@ def chip_seq_IBIS(
     center_col = 'abs_summit'
     centered_bed = iu.get_centered_bed(chip_seq_path, TMP_DIR,center_col , name_col)
     positive_data = iu.get_fasta_from_bed(centered_bed, TMP_DIR, genome='hg38')
-    negative_data = iu.create_negative_from_fasta(positive_data)
+    negative_data = iu.negative_shuffle(positive_data)
     input_shape = get_input_shape(positive_data)
     print(f'bed path: {centered_bed}\npositive data: {positive_data}\nnegative data: {negative_data}')
     db_chs_obj = get_db_chs_object(protein, species, experiment, lab, cite, input_shape)

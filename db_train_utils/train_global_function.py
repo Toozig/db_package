@@ -6,32 +6,34 @@ import pandas as pd
 import concurrent.futures
 from keras.models import Sequential
 from keras.layers import Conv1D, MaxPooling1D, Dense, Dropout, Flatten
-from tensorflow.keras.layers import TimeDistributed, LSTM
 from keras.callbacks import EarlyStopping
 from keras.optimizers import Adam
 from sklearn.model_selection import KFold
 from keras import backend as K
 from keras.saving import register_keras_serializable
 from typing import Dict
+import json
+import os
 from tensorflow.keras.losses import BinaryCrossentropy
 from tensorflow.keras.layers import MaxPooling1D
+
+from .model_design import get_model
 import os
 ## variables
 # numbers od strides for the convolution layer
 STRIDES = 1
 # number of cross validation of model training
+RELU = 'relu'
+LINEAR = 'linear'
+SIGMOID = 'sigmoid'
+MSE = 'mse'
+
 CROSS_VAL_NUM = 3
 BATCH_SIZE = 64
 
 
 
 MODEL_PATH = '/dsi/gonen-lab/users/toozig/projects/deepBind_pipeline/deepBind_run/models/IB_models'
-
-
-RELU = 'relu'
-LINEAR = 'linear'
-SIGMOID = 'sigmoid'
-MSE = 'mse'
 
 
 YARON_PARMS = {
@@ -90,10 +92,6 @@ def __tf_pearson_correlation(y_true, y_pred):
     return K.mean(r)
 
 
-
-
-
-
 def build_model(n_motif, length_motif, input_shape, dropout_rate,
                 learning_rate,hidden_layer, binary=False, **kwargs):
     # print all arguments
@@ -129,6 +127,7 @@ def build_model(n_motif, length_motif, input_shape, dropout_rate,
 
 
 def train_model(model, X_train, y_train, X_test,y_test, learning_steps):
+    # print the shape of the data
 
     early_stopping = EarlyStopping(monitor='val_loss',
                                       patience=5, verbose=0, 
@@ -148,9 +147,6 @@ def train_model(model, X_train, y_train, X_test,y_test, learning_steps):
                     callbacks=[early_stopping], verbose=0)
     # Evaluate the model on the test set or perform any other required actions
         train_accuray= model.evaluate(X_test, y_test)
-        cur_eval =  {f"fold_{fold}_pearson_corr" : train_accuray[1], 
-                     f"fold_{fold}_MSE" : train_accuray[0]}
-        evaluation_dict.update(cur_eval)
     return model , evaluation_dict
 
 def train_final_model(model, X_train, y_train, X_test, y_test, learning_steps):
@@ -164,20 +160,16 @@ def train_final_model(model, X_train, y_train, X_test, y_test, learning_steps):
               callbacks=[early_stopping], verbose=0)
     
     # Evaluate the model on the test set
-    test_accuracy = model.evaluate(X_test, y_test)
-    
-    evaluation_dict = {
-        "test_pearson_corr": test_accuracy[1], 
-        "test_MSE": test_accuracy[0]
-    }
-    
+    evaluation_dict = eval_model(model, X_test,y_test)
     return model, evaluation_dict
 
 
 def eval_model(model, x,y)->Dict[str,float]:
-        train_accuray= model.evaluate(x, y)
-        return {"pearson_correlation" : train_accuray[1],
-                "MSE" : train_accuray[0],}
+    test_results = model.evaluate(x, y)
+
+    
+    evaluation_dict = {name: value for name, value in zip(model.metrics_names, test_results)}
+    return evaluation_dict
 
 def train_with_commet(parameter_dict, commetAPIKey, x_train, y_train, x_test, y_test):
     projectName = parameter_dict[EXP_ID].split('_')[0]
@@ -218,8 +210,6 @@ def add_model_to_table(model_id, protein, species, experiment, experiment_detail
     model = DeepbindModel(protein, species, experiment, experiment_details, cite, model_id,input_shape, 'IB_generated')
     model.save_model_to_table()
 
-import json
-import os
 
 
 
@@ -235,7 +225,7 @@ def get_parms_dict(input_shape,
     hidden_layer, 
     learning_step, 
     expirement_id,
-    binary=False):
+    binary):
     return {
         INPUT_SHAPE : input_shape,
         TRAIN_SET: train_set,
@@ -246,7 +236,8 @@ def get_parms_dict(input_shape,
         DROPOUT_RATE: dropout_rate,
         HIDDEN_LAYER: hidden_layer,
         LEARNING_STEP: learning_step,
-        EXP_ID: expirement_id
+        EXP_ID: expirement_id,
+        BINARY :binary,
     }
 
 
@@ -349,12 +340,34 @@ def process_result(results, df, model_id,top_n=10):
     save_models(top_ten_items, results, output_dir)
 
 
-def process_all_exps_results(results, df, exp_id):
+def run_single_deepBind_expirement(row, X_train, y_train, X_test, y_test, version, final):
+    parameter_dict = get_parms_dict(X_train.shape[1:], row[TRAIN_SET],
+                                    row[TEST_SET], row[LEARNING_RATE],
+                                    row[N_MOTIF], row[LENGTH_MOTIF],
+                                    row[DROPOUT_RATE], row[HIDDEN_LAYER],
+                                    row[LEARNING_STEP], row[EXP_ID],row[BINARY])
 
-    process_result(results, df, exp_id)
-    # need to understand what todo with the results if they are trhe same maybe change the id beforew3sazx6
-    model_data['model_id'] = exp_id
-    # copy the data to the output folder
-    copy_model_data(df.trainSet.values[0], exp_id)
-    # add model to the model tabel
-    add_model_to_table(**model_data)
+    model = get_model(version, parameter_dict)
+    train_func = train_final_model if final else train_model
+    model, train_eval_dict = train_func(model, X_train, y_train, X_test, y_test, parameter_dict[LEARNING_STEP])
+    val_eval_dict = eval_model(model, X_train, y_train)
+    test_eval_dict = eval_model(model, X_test, y_test)
+    val_dict = {TRAIN_STR: train_eval_dict, VAL_STR: val_eval_dict, TEST_STR: test_eval_dict}
+
+    if DEBUG:
+        print(f"finished expirement {row[EXP_ID]}")
+
+    return {EXP_ID: row[EXP_ID], 'model': model, 'score_dict': val_dict}
+
+
+def run_deepBind_expiriment(df, X_train,y_train, X_test ,y_test, obj_model, version, final):
+
+    exp_id = obj_model.get_id()
+    with concurrent.futures.ProcessPoolExecutor() as executor:
+        # Submit each configuration to the executor for parallel execution
+        futures = [executor.submit(run_single_deepBind_expirement, row,  X_train,y_train, X_test ,y_test, version, final) for _,row in df.iterrows()]
+        results = [future.result() for future in concurrent.futures.as_completed(futures)]
+    
+    return exp_id, df, results, obj_model
+
+

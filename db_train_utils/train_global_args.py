@@ -16,6 +16,7 @@ TEST_SET_NAME = 'testSetName'
 TRAIN_SET = 'trainSet'
 TEST_SET = 'testSet'
 EXP_ID = 'expirement_id'
+VERSION = 'version'
 INPUT_SHAPE = 'input_shape'
 ## model eval
 TRAIN_STR = 'train'

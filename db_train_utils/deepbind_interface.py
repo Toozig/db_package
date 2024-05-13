@@ -62,3 +62,12 @@ class DeepbindModel():
             'cite': self.cite,
             'source': self.source_path
         }
+    
+    def get_id(self):
+        return self.model_id
+    
+    def get_experiment_details(self):
+        return self.experiment_details
+    
+    def get_protein(self):
+        return self.protein

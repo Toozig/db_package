@@ -13,11 +13,12 @@ POSITIVE_DATA = 'positive_data'
 NEGATIVE_DATA = 'negative_data'
 CHIPS_SEQ_COL_REPLACE_DICT = { TEST_SET: POSITIVE_DATA, TRAIN_SET: NEGATIVE_DATA}
 
+from ..deepbind_interface import DeepbindModel
 
-def get_db_chs_object(protein, species, experiment, lab, cite, input_shape,
+def get_db_chs_object(protein, species, lab, cite, input_shape,
                         source_path=None, cell_line='',antibody=''):
     experiment_details = {'lab': lab, 'cell_line': cell_line, 'antibody': antibody}
-    return DeepbindModel(protein, species, experiment, experiment_details, cite,
+    return DeepbindModel(protein, species, 'ChIP-seq', experiment_details, cite,
                               input_shape, source_path=source_path)
 
 
@@ -36,21 +37,17 @@ def get_chip_processed_data(fasta_path, is_positive):
 
 
 
-def get_train_test_data(positive_data, negative_data, to_split):
+def get_train_test_data(positive_data, negative_data):
     x_pos, y_pos = get_chip_processed_data(positive_data, True)
     x_neg, y_neg = get_chip_processed_data(negative_data, False)
-    x_train = np.concatenate((x_pos, x_neg))
-    y_train =  np.concatenate((y_pos, y_neg))
-    return x_train, y_train
+    X = np.concatenate((x_pos, x_neg))
+    y =  np.concatenate((y_pos, y_neg))
+    return X, y
 
 def prepare_chs_train_test(x_train, y_train, to_split):
-    if to_split:
-        x_train, x_test, y_train, y_test = train_test_split(x_train, y_train, test_size=0.15, random_state=42)
-    else:
-        # traiing on all data
-        x_test, y_test = x_train, y_train
+    x_train, x_test, y_train, y_test = train_test_split(x_train, y_train, test_size=0.15 if to_split else 0.05, random_state=42)
     return x_train, y_train, x_test, y_test
-
+ 
 def prepare_chs_df(n_exp,db_chs_obj,commetAPIKey, positive_data, negative_data):
     configuration_list = generate_variables_configurations(n_exp)
     configuration_df = pd.DataFrame(configuration_list)
@@ -62,21 +59,22 @@ def prepare_chs_df(n_exp,db_chs_obj,commetAPIKey, positive_data, negative_data):
     configuration_df[EXP_ID] = db_chs_obj.generate_id(db_chs_obj.cite) + '_' + configuration_df.index.astype(str)
     return configuration_df
 
-def prepare_chs_ibis_df(n_exp,db_chs_obj,commetAPIKey, positive_data, negative_data):
+def prepare_chs_ibis_df(n_exp,db_chs_obj,commetAPIKey, positive_data, negative_data,version, id_prefix=''):
     configuration_df = genretate_fcn_configurations(n_exp)
     # in chips seq - the positive data is the test set
     configuration_df[TEST_SET] = positive_data
+    configuration_df[VERSION] = version
     configuration_df[TRAIN_SET] = negative_data
     configuration_df[COMMET_API_KEY_ARG] = commetAPIKey
     configuration_df[BINARY] = True
-    configuration_df[EXP_ID] =  db_chs_obj.generate_id(db_chs_obj.cite) + '_' + configuration_df.index.astype(str)
+    configuration_df[EXP_ID] =id_prefix +   db_chs_obj.generate_id(db_chs_obj.cite) + '_' + configuration_df.index.astype(str)
     return configuration_df
 
 
 def process_init_result(config_df,results,exp_id):
     final_df = get_n_save_final_df(results,config_df,exp_id ,True)
     # means there is only one data set, need to train top 10 on all data
-    top_ten = final_df.sort_values(PEARSON_VALIDATION_COL, ascending=False).iloc[:10,:]
+    top_ten = final_df.sort_values('validation.auc', ascending=False).iloc[:10,:]
     top_ten = top_ten.loc[:,list(set([EXP_ID, TRAIN_SET, TEST_SET] + config_df.columns.tolist()))]
     print(top_ten[EXP_ID])
     print(type(top_ten[EXP_ID]))
