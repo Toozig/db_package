@@ -4,28 +4,37 @@ from tqdm import tqdm
 import numpy as np
 from keras import backend as K
 from keras.saving import register_keras_serializable
-from tensorflow.keras.models import load_model, Sequential
-from tensorflow.keras.layers import Conv1D
-from keras.layers import Conv1D, MaxPooling1D, Dense, Dropout, Flatten
-from keras.callbacks import EarlyStopping
-from keras.optimizers import Adam
+from tensorflow.keras.models import load_model
+from tensorflow import convert_to_tensor
 
 
 import os
 import concurrent
-from .run_general import get_reversed_record, GENERATED, DEBUG, SHIFT_PARAM, fasta_from_seq_record, save_prediction_df, N_PROCESS
+from .run_general import get_reversed_record, GENERATED, DEBUG, SHIFT_PARAM, fasta_from_seq_record, save_prediction_df
 import pandas as pd
 import ast
 from tqdm import tqdm
 from ..predictionArchiver.predictionArchiver import PredictionSaver
 from ..db_train_utils.db_train_utils import oneHot_encode
-from ..db_train_utils.train_global_function import build_model
 from ..db_train_utils.train_global_args import *
+import configparser
+
+config = configparser.ConfigParser()
+cur_dir = os.path.dirname(__file__)
+# set the work dir to this dir
+os.chdir(cur_dir)
+config.read('../config.ini')
 
 
-IB_MODEL_PATH ='/dsi/gonen-lab/users/toozig/projects/deepBind_pipeline/deepBind_run/models/IB_models/%s/models'
+BASE_PATH = config['MODEL_RUN']['BASE_PATH']
+
+IB_MODEL_PATH = f'{BASE_PATH}/%s/models'
+IB_MODEL_PATH2 = f'{BASE_PATH}/%s/models/%s.keras'
+N_PROCESS = 5
+
+# IB_MODEL_PATH ='/dsi/gonen-lab/users/toozig/projects/deepBind_pipeline/deepBind_run/models/IB_models/%s/models'
+# IB_MODEL_PATH2 ='/dsi/gonen-lab/users/toozig/projects/deepBind_pipeline/deepBind_run/models/IB_models/%s/models/%s.keras'
 MODEL_PARMS = [EXP_ID,N_MOTIF, LENGTH_MOTIF, DROPOUT_RATE, LEARNING_RATE, HIDDEN_LAYER, BINARY]
-
 DEBUG = False
 
 
@@ -50,37 +59,67 @@ def __tf_pearson_correlation(y_true, y_pred):
 
 
 def predict_IB_model(model_path, onehot_seqs):
+    """
+    prediction of multi samples of single moodel
+    """
     model = load_model(model_path)
     score = model.predict(onehot_seqs, verbose=0)
     model_id = model_path.split('/')[-1].split('.keras')[0]
     return {model_id : score}
 
+
+
+def get_IB_model_prediction2(model_id,onehot_seqs):
+    """
+    Calculates the score for each sub-model (1/10) of the model_id
+    """
+    model_path = IB_MODEL_PATH2 % (model_id , model_id)
+    model = load_model(model_path)
+    score = model.predict(onehot_seqs, verbose=0)
+    return score
+
+
+def get_IB_models(model_ids: list) -> list:
+    """
+    Returns a list of models from the model_ids
+    """
+    models = []
+    for model_id in model_ids:
+        model_path = IB_MODEL_PATH2 % (model_id, model_id)
+        models += [load_model(model_path)]
+    return models
+
 def get_IB_model_prediction(model_id,onehot_seqs):
+    """
+    Calculates the score for each sub-model (1/10) of the model_id
+    """
     model_path = IB_MODEL_PATH % model_id
     models = os.listdir(model_path)
     models = [os.path.join(model_path,model) for model in models]
     result_dict = {}
     
-    with concurrent.futures.ProcessPoolExecutor(10) as executor:
+    with concurrent.futures.ProcessPoolExecutor(N_PROCESS) as executor:
         results = [executor.submit(predict_IB_model, model, onehot_seqs) for model in models]
         for f in concurrent.futures.as_completed(results):
             score = f.result()
             result_dict.update(score)
     return {"model_id": model_id,'score':result_dict}
 
+def get_processed_result(model_id,onehot_seqs):
+    """
+    given ID and onehot encoded sequences, returns the prediction of the models
+     (using mean to aggregate the results of the 10 models)
+    """
+    result = get_IB_model_prediction(model_id,onehot_seqs)
+    result = {k: v.flatten() for k, v in result['score'].items()}
+    return pd.DataFrame(result).mean(axis=1).to_numpy()
 
-def get_converted_model(original_model, n_nucleotides):
-    new_model = get_simple_model(original_model.optimizer, original_model.loss, n_nucleotides = n_nucleotides)
 
-    # copy all weights
-    for i in range(len(original_model.layers)):
-        new_model.layers[i].set_weights(original_model.layers[i].get_weights())
-
-    return new_model
     
 def run_model_on_subsequence(model_id, fasta_file_path):
     seq_records  = [str(recored.seq) for recored in SeqIO.parse(fasta_file_path, "fasta")]
     one_hot_seqs = np.stack([oneHot_encode(record) for record in seq_records])
+    one_hot_seqs = convert_to_tensor(one_hot_seqs)
     results = get_IB_model_prediction(model_id,one_hot_seqs)
     results.update({'subsequnces': seq_records})
     return results
@@ -147,7 +186,10 @@ def count_sequences(fasta_file):
         return count
 
 def get_input_shape(exp_details):
-    return ast.literal_eval(exp_details)['input_shape'][0]
+
+    exp_dict = ast.literal_eval(exp_details)
+    input_shape = exp_dict['input_shape']
+    return input_shape
 
 
 def main_IB(fasta_file,model_df, shift):
@@ -233,7 +275,7 @@ def run_ibis_batch(seq_records, models_ids):
     print(one_hot_seqs.shape)
     print(f'running on {len(seq_records)} sequences')
     result_dicts = []
-    with concurrent.futures.ProcessPoolExecutor(20) as executor:
+    with concurrent.futures.ProcessPoolExecutor(N_PROCESS) as executor:
         results = [executor.submit(run_model_on_subsequence_ibis, model_id, one_hot_seqs, seq_ids) for model_id in models_ids]
         for f in concurrent.futures.as_completed(results):
             cur_prediciton = f.result()
@@ -275,220 +317,3 @@ def run_ibis_on_sequence_no_shift(model_df, fasta_file_path, project_name, filte
     return saver.json()
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    
-
-# def change_input_shape(model, new_input_shape):
-#     # Create a new model with the desired input shape
-    
-#     new_model = Sequential()
-#     new_model.add(Conv1D(filters=model.layers[0].filters,
-#                          kernel_size=model.layers[0].kernel_size,
-#                          strides=model.layers[0].strides,
-#                          padding=model.layers[0].padding,
-#                          activation=model.layers[0].activation,
-#                          input_shape=new_input_shape))
-
-#     # Copy the weights from the original model to the new model
-#     new_model.layers[0].set_weights(model.layers[0].get_weights())
-
-#     # Add the remaining layers from the original model to the new model
-#     for layer in model.layers[1:]:
-#         new_model.add(layer)
-
-#     return new_model
-
-from tensorflow.keras.layers import GlobalAveragePooling1D
-STRIDES = 1
-
-RELU = 'relu'
-LINEAR = 'linear'
-SIGMOID = 'sigmoid'
-MSE = 'mse'
-
-def build_fcn_model(n_motif, length_motif, dropout_rate, learning_rate, binary=False, **kwargs):
-    # Create a Sequential model
-    model = Sequential()
-
-    # Add a Conv1D layer
-    model.add(Conv1D(filters=n_motif,
-                     kernel_size=(length_motif,),
-                     strides=STRIDES,
-                     activation='relu',
-                     input_shape=(None, 4),  # None indicates that any input length is acceptable
-                     ))
-
-    # Add a MaxPooling1D layer
-    model.add(MaxPooling1D(pool_size=(length_motif -  1,)))
-
-    # Add a Dropout layer
-    model.add(Dropout(rate=dropout_rate))
-
-    # Add a Flatten layer
-    model.add(GlobalAveragePooling1D())  # Replaces Flatten for FCN
-
-    # Add a Dense layer
-    model.add(Dense(units=1,
-                    activation= SIGMOID if binary else LINEAR,
-                    )) 
-
-    # Compile the model
-    optimizer = Adam(learning_rate=learning_rate)
-    model.compile(optimizer=optimizer, loss= BinaryCrossentropy() if binary else MSE,
-                   metrics=[__tf_pearson_correlation])
-
-    return model
-
-
-
-def change_input_shape(model, new_input_shape):
-    # Create a new model with the new input shape
-    new_model = build_fcn_model(n_motif=model.layers[0].filters,
-                                length_motif=model.layers[0].kernel_size[0],
-                                input_shape=new_input_shape,
-                                dropout_rate=model.layers[2].rate,
-                                learning_rate=model.optimizer.learning_rate,
-                                hidden_layer=len(model.layers) > 4,
-                                binary=model.layers[-1].activation == 'sigmoid')
-
-    # Copy the weights from the old model to the new model
-    for new_layer, layer in zip(new_model.layers, model.layers):
-        if not isinstance(new_layer, GlobalAveragePooling1D):
-            new_layer.set_weights(layer.get_weights())
-
-    return new_model
-
-
-def predict_wrapper(model_path, X, input_shape):
-    model = load_model(model_path)
-    new_model = change_input_shape(model, input_shape)
-    model_id = model_path.split('/')[-1].split('.keras')[0]
-    return {model_id: model.predict(X)}
-
-
-def get_models_path(model_id):
-    """
-    create a model using the weight of the previous model and the new input shape
-    """
-    # load the original model
-    model_path =  IB_MODEL_PATH % model_id
-    models_path = [model_path + '/' + i for i in os.listdir(model_path)]
-    return models_path
-
-
-def predict_on_different_input_shape(model_id, X):
-    """
-    predict on the same model with different input shape
-    """
-    input_shape = X.shape
-    print(input_shape)
-    models_path = get_models_path(model_id)
-    for model_path in models_path:
-        model = load_model(model_path)
-        new_model = change_input_shape(model, input_shape)
-        model_id = model_path.split('/')[-1].split('.keras')[0]
-        return {model_id: model.predict(X)}
-    with concurrent.futures.ProcessPoolExecutor(len(models_path)) as executor:
-        predictions = executor.map(predict_wrapper, models_path, 
-                                        [X]*len(models_path),
-                                        [input_shape]*len(models_path))
-    return pd.DataFrame(predictions)
-    
-
-    
-# def predict_wrapper2(model_record, X, model_id):
-#     model = get_model(model_record)
-
-#     model_id = model_path.split('/')[-1].split('.keras')[0]
-#     return {model_id: model.predict(X)}
-
-# def get_model_parms_df(input_shape,model_id):
-#     """
-#     create a model parameter dataframe from the model table, adding the wanted input shape
-#     """
-#     model_parms_path = IB_MODEL_PATH % model_id
-#     parms_df = pd.read_csv(model_parms_path)
-#     parms_df[BINARY] = FALSE if BINARY not in parms_df.columns else parms_df[BINARY]
-#     params_df = parms_df[MODEL_PARMS]
-#     params_df[INPUT_SHAPE] = input_shape
-#     return params_df
-
-# def get_model(model_record):
-#     """
-#     create a model using the weight of the previous model and the new input shape
-#     """
-#     # load the original model
-#     exp_id = model_record.pop(EXP_ID)
-#     model_path = os.path.join(MODEL_FOLDER,model_id, 'models', f'{exp_id}.keras')
-#     old_model = load_model(model_path)
-
-#     # create model with same parameters
-#     new_model = build_model(**model_record)
-#     # copy the weights
-#     for i in range(len(old_model.layers)):
-#         new_model.layers[i].set_weights(old_model.layers[i].get_weights())
-#     return new_model

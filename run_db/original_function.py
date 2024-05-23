@@ -61,6 +61,9 @@ def run_original_command(fasta_file_path, model_ids_path):
     output_file_path = output_file_path.replace('(','').replace(')','').replace(':','_' ) + ".tsv"
     os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
     command = f"{DEEPBIND_PATH} '{model_ids_path}' '{fasta_file_path}' > '{output_file_path}'"
+    # print('\n\n\n\n\n\n')
+    # print(command)
+    # print('\n\n\n\n\n\n')
     os.popen(command).read()
 
     return output_file_path

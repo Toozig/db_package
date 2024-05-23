@@ -4,7 +4,6 @@ import pandas as pd
 import sys
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
-from ..db_train_utils.train_global_function import build_model
 from ..db_train_utils.train_global_args import *
 
 import concurrent.futures
@@ -29,12 +28,14 @@ MODEL_TABLE = f'{OUTPUT_DIR}/model_table.tsv'
 
 
 
-def get_model_df(protein_list):
+def get_model_df(protein_list=[], all_models=False):
     """
     get the models DF for the given protein list
     """
     protein_list = [i.lower() for i in protein_list]
     model_df = pd.read_csv(MODEL_TABLE, sep='\t', comment='#')
+    if all_models or not len(protein_list):
+        return model_df
     model_df['protein'] = model_df['protein'].str.lower()
     avilable_models = model_df[model_df['protein'].str.lower().isin(protein_list)]
     nonavilable_models = [i for i in protein_list if i.lower() not in avilable_models['protein'].str.lower().tolist()]

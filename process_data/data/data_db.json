@@ -1,0 +1,127 @@
+{
+    "Chip-seq_FOXL2_Mus_musculus__120_0": {
+        "id": "Chip-seq_FOXL2_Mus_musculus__120_0",
+        "protein": "FOXL2",
+        "species": "Mus musculus",
+        "n_samples": 23332,
+        "X_path": "/home/dsi/toozig/gonen-lab/users/toozig/projects/deepBind_pipeline/streamlit_app/pages/db_package/process_data/data/Chip-seq_FOXL2_Mus_musculus__120_0/Chip-seq_FOXL2_Mus_musculus__120_0_X.npy",
+        "y_path": "/home/dsi/toozig/gonen-lab/users/toozig/projects/deepBind_pipeline/streamlit_app/pages/db_package/process_data/data/Chip-seq_FOXL2_Mus_musculus__120_0/Chip-seq_FOXL2_Mus_musculus__120_0_y.npy",
+        "cite": "",
+        "exp_type": "Chip-seq",
+        "experiment_details": {
+            "data": "/home/dsi/toozig/gonen-lab/users/toozig/projects/deepBind_pipeline/streamlit_app/pages/db_package/process_data/data/Chip-seq_FOXL2_Mus_musculus__120_0/FOXL2_combined_final.tsv",
+            "padding": 120,
+            "negative_type": "background_bed",
+            "positive_bed": "/home/dsi/toozig/gonen-lab/users/toozig/projects/deepBind_pipeline/streamlit_app/pages/db_package/process_data/data/Chip-seq_FOXL2_Mus_musculus__120_0/FOXL2_combined_final_centered_120bp.bed",
+            "negative_bed": "/tmp/toozig/FOXL2_combined_final_centered_120bp_negative.bed",
+            "positive_fasta": "/home/dsi/toozig/gonen-lab/users/toozig/projects/deepBind_pipeline/streamlit_app/pages/db_package/process_data/data/Chip-seq_FOXL2_Mus_musculus__120_0/120bp_FOXL2_combined_final_centered_120bp.fa",
+            "negative_fasta": "/home/dsi/toozig/gonen-lab/users/toozig/projects/deepBind_pipeline/streamlit_app/pages/db_package/process_data/data/Chip-seq_FOXL2_Mus_musculus__120_0/120bp_FOXL2_combined_final_centered_120bp_negative.fa",
+            "background_bed": "/dsi/gonen-lab/shared_files/WGS_on_DSD/data/read_only/ATAC_seq/mouse/mm10_tab.bed",
+            "bg_cite": "Gonen_lab_ATAC"
+        },
+        "comments": "",
+        "added_by": "toozig",
+        "date": "2024-05-14 10:26"
+    },
+    "PBM_DMRT1_hg38_GSM1292961_GSM1292960_HK_ME_0": {
+        "id": "PBM_DMRT1_hg38_GSM1292961_GSM1292960_HK_ME_0",
+        "protein": "DMRT1",
+        "species": "Homo sapiens",
+        "n_samples": {
+            "ME": 40524,
+            "HK": 40329
+        },
+        "X_path": {
+            "ME": "/home/dsi/toozig/gonen-lab/users/toozig/projects/deepBind_pipeline/streamlit_app/pages/db_package/process_data/data/PBM_DMRT1_hg38_GSM1292961_HK_ME_0_PBM_DMRT1_hg38_GSM1292960_HK_ME_0/PBM_DMRT1_hg38_GSM1292961_HK_ME_0_X.npy",
+            "HK": "/home/dsi/toozig/gonen-lab/users/toozig/projects/deepBind_pipeline/streamlit_app/pages/db_package/process_data/data/PBM_DMRT1_hg38_GSM1292961_HK_ME_0_PBM_DMRT1_hg38_GSM1292960_HK_ME_0/PBM_DMRT1_hg38_GSM1292960_HK_ME_0_X.npy"
+        },
+        "y_path": {
+            "ME": "/home/dsi/toozig/gonen-lab/users/toozig/projects/deepBind_pipeline/streamlit_app/pages/db_package/process_data/data/PBM_DMRT1_hg38_GSM1292961_HK_ME_0_PBM_DMRT1_hg38_GSM1292960_HK_ME_0/PBM_DMRT1_hg38_GSM1292961_HK_ME_0_y.npy",
+            "HK": "/home/dsi/toozig/gonen-lab/users/toozig/projects/deepBind_pipeline/streamlit_app/pages/db_package/process_data/data/PBM_DMRT1_hg38_GSM1292961_HK_ME_0_PBM_DMRT1_hg38_GSM1292960_HK_ME_0/PBM_DMRT1_hg38_GSM1292960_HK_ME_0_y.npy"
+        },
+        "cite": {
+            "ME": "GSM1292961",
+            "HK": "GSM1292960"
+        },
+        "exp_type": "PBM",
+        "experiment_details": {
+            "HKME": true,
+            "to_norm": true,
+            "linker": "",
+            "signal_col": "mean_signal_intensity",
+            "background_col": "mean_background_intensity",
+            "seq_col": "pbm_sequence",
+            "path_ME": "/home/dsi/toozig/gonen-lab/users/toozig/projects/deepBind_pipeline/streamlit_app/pages/db_package/process_data/data/PBM_DMRT1_hg38_GSM1292961_HK_ME_0_PBM_DMRT1_hg38_GSM1292960_HK_ME_0/GSM1292961_pTH9197_ME_8mer_6500.raw.txt",
+            "path_HK": "/home/dsi/toozig/gonen-lab/users/toozig/projects/deepBind_pipeline/streamlit_app/pages/db_package/process_data/data/PBM_DMRT1_hg38_GSM1292961_HK_ME_0_PBM_DMRT1_hg38_GSM1292960_HK_ME_0/GSM1292960_pTH9197_HK_8mer_6759.raw.txt.gz"
+        },
+        "comments": "",
+        "added_by": "toozig",
+        "date": "2024-05-14 11:26"
+    },
+    "PBM_WT1_hg38_UP00627_0": {
+        "id": "PBM_WT1_hg38_UP00627_0",
+        "protein": "WT1",
+        "species": "Homo sapiens",
+        "n_samples": 41944,
+        "X_path": "/home/dsi/toozig/gonen-lab/users/toozig/projects/deepBind_pipeline/streamlit_app/pages/db_package/process_data/data/PBM_WT1_hg38_UP00627_0/PBM_WT1_hg38_UP00627_0_X.npy",
+        "y_path": "/home/dsi/toozig/gonen-lab/users/toozig/projects/deepBind_pipeline/streamlit_app/pages/db_package/process_data/data/PBM_WT1_hg38_UP00627_0/PBM_WT1_hg38_UP00627_0_y.npy",
+        "cite": "UP00627",
+        "exp_type": "Chip-seq",
+        "experiment_details": {
+            "HKME": false,
+            "to_norm": false,
+            "linker": "GTCTGTGTTCCGTTGTCCGTGCTG",
+            "signal_col": "0",
+            "background_col": "",
+            "seq_col": "1",
+            "path": "/home/dsi/toozig/gonen-lab/users/toozig/projects/deepBind_pipeline/streamlit_app/pages/db_package/process_data/data/PBM_WT1_hg38_UP00627_0/WT1_REF_R1_combinatorial.txt"
+        },
+        "comments": "",
+        "added_by": "toozig",
+        "date": "2024-05-15 11:11"
+    },
+    "PBM_LEF1_hg38_IBIS.QNZS_PBM14333_0": {
+        "id": "PBM_LEF1_hg38_IBIS.QNZS_PBM14333_0",
+        "protein": "LEF1",
+        "species": "Homo sapiens",
+        "n_samples": 40524,
+        "X_path": "/home/dsi/toozig/gonen-lab/users/toozig/projects/deepBind_pipeline/streamlit_app/pages/db_package/process_data/data/PBM_LEF1_hg38_IBIS.QNZS_PBM14333_0/PBM_LEF1_hg38_IBIS.QNZS_PBM14333_0_X.npy",
+        "y_path": "/home/dsi/toozig/gonen-lab/users/toozig/projects/deepBind_pipeline/streamlit_app/pages/db_package/process_data/data/PBM_LEF1_hg38_IBIS.QNZS_PBM14333_0/PBM_LEF1_hg38_IBIS.QNZS_PBM14333_0_y.npy",
+        "cite": "IBIS.QNZS_PBM14333",
+        "exp_type": "PBM",
+        "experiment_details": {
+            "HKME": false,
+            "to_norm": false,
+            "linker": "",
+            "signal_col": "mean_signal_intensity",
+            "background_col": "mean_background_intensity",
+            "seq_col": "pbm_sequence",
+            "path": "/home/dsi/toozig/gonen-lab/users/toozig/projects/deepBind_pipeline/streamlit_app/pages/db_package/process_data/data/PBM_LEF1_hg38_IBIS.QNZS_PBM14333_0/QNZS_PBM14333.tsv"
+        },
+        "comments": "",
+        "added_by": "toozig",
+        "date": "2024-05-17 14:22"
+    },
+    "PBM_LEF1_hg38_IBIS.SD_PBM14333.tsv_0": {
+        "id": "PBM_LEF1_hg38_IBIS.SD_PBM14333.tsv_0",
+        "protein": "LEF1",
+        "species": "Homo sapiens",
+        "n_samples": 40524,
+        "X_path": "/home/dsi/toozig/gonen-lab/users/toozig/projects/deepBind_pipeline/streamlit_app/pages/db_package/process_data/data/PBM_LEF1_hg38_IBIS.SD_PBM14333.tsv_0/PBM_LEF1_hg38_IBIS.SD_PBM14333.tsv_0_X.npy",
+        "y_path": "/home/dsi/toozig/gonen-lab/users/toozig/projects/deepBind_pipeline/streamlit_app/pages/db_package/process_data/data/PBM_LEF1_hg38_IBIS.SD_PBM14333.tsv_0/PBM_LEF1_hg38_IBIS.SD_PBM14333.tsv_0_y.npy",
+        "cite": "IBIS.SD_PBM14333.tsv",
+        "exp_type": "PBM",
+        "experiment_details": {
+            "HKME": false,
+            "to_norm": true,
+            "linker": "",
+            "signal_col": "mean_signal_intensity",
+            "background_col": "mean_background_intensity",
+            "seq_col": "pbm_sequence",
+            "path": "/home/dsi/toozig/gonen-lab/users/toozig/projects/deepBind_pipeline/streamlit_app/pages/db_package/process_data/data/PBM_LEF1_hg38_IBIS.SD_PBM14333.tsv_0/SD_PBM14333.tsv"
+        },
+        "comments": "",
+        "added_by": "toozig",
+        "date": "2024-05-17 14:23"
+    }
+}

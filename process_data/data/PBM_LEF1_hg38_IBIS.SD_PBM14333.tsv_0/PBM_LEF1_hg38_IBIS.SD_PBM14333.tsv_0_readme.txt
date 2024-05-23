@@ -1,0 +1,6 @@
+Data id: PBM_LEF1_hg38_IBIS.SD_PBM14333.tsv_0
+X shape: (40524, 35, 4)
+y shape: (40524,)
+original Data path: /home/dsi/toozig/gonen-lab/users/toozig/projects/deepBind_pipeline/streamlit_app/pages/db_package/process_data/data/PBM_LEF1_hg38_IBIS.SD_PBM14333.tsv_0/SD_PBM14333.tsv
+X path: /home/dsi/toozig/gonen-lab/users/toozig/projects/deepBind_pipeline/streamlit_app/pages/db_package/process_data/data/PBM_LEF1_hg38_IBIS.SD_PBM14333.tsv_0/PBM_LEF1_hg38_IBIS.SD_PBM14333.tsv_0_X.npy
+y path: /home/dsi/toozig/gonen-lab/users/toozig/projects/deepBind_pipeline/streamlit_app/pages/db_package/process_data/data/PBM_LEF1_hg38_IBIS.SD_PBM14333.tsv_0/PBM_LEF1_hg38_IBIS.SD_PBM14333.tsv_0_y.npy

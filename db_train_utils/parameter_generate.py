@@ -53,9 +53,6 @@ def get_random_configuration():
                     LEARNING_RATE: __log_uniform_sampler(LEARNING_RATE_PARAMS[0], 
                                                         LEARNING_RATE_PARAMS[-1]),
                     N_MOTIF: np.random.choice(NUMBER_OF_MOTIF_PARAMS)}
-    
-    exp_id = f"DR{int(conf_dict[DROPOUT_RATE]*100)}LR{int(conf_dict[LEARNING_RATE]*100)}NM{conf_dict[N_MOTIF]}"
-    conf_dict['expirementID1'] = exp_id
     return conf_dict
 
 
@@ -87,7 +84,7 @@ def generate_variables_configurations(n:int):
         ]
     # Update random configurations with generated configurations
     random_conf_with_parameters = [dict(conf, **config) for conf in random_conf for config in configurations]
-    return random_conf_with_parameters
+    return pd.DataFrame(random_conf_with_parameters)
 
 
 

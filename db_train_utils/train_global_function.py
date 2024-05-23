@@ -31,6 +31,8 @@ MSE = 'mse'
 CROSS_VAL_NUM = 3
 BATCH_SIZE = 64
 
+# model table cols
+ID_COL = 0
 
 
 MODEL_PATH = '/dsi/gonen-lab/users/toozig/projects/deepBind_pipeline/deepBind_run/models/IB_models'
@@ -62,16 +64,16 @@ def copy_model_data(json_path, model_id):
     os.makedirs(new_path, exist_ok=True)
     os.system(f'cp {file_path} {new_path}/.')
 
-def create_comet_project(commet_API,TF_name):
-    api = comet_ml.api.API(commet_API)
-    workspace = api.get('deepBind')
-    if TF_name.lower() in workspace:
-        print(f"Project {TF_name} already exists")
-        return
-    description = f"DeepBind model for {TF_name} "
+# def create_comet_project(commet_API,TF_name):
+#     api = comet_ml.api.API(commet_API)
+#     workspace = api.get('deepBind')
+#     if TF_name.lower() in workspace:
+#         print(f"Project {TF_name} already exists")
+#         return
+#     description = f"DeepBind model for {TF_name} "
 
-    api.create_project('deepBind', project_name=TF_name, project_description=description,
-        public=True)
+#     api.create_project('deepBind', project_name=TF_name, project_description=description,
+#         public=True)
 
 @register_keras_serializable()
 def __tf_pearson_correlation(y_true, y_pred): 
@@ -90,40 +92,6 @@ def __tf_pearson_correlation(y_true, y_pred):
     r_den = K.sqrt(x_square_sum * y_square_sum)
     r = r_num / (r_den + epsilon)
     return K.mean(r)
-
-
-def build_model(n_motif, length_motif, input_shape, dropout_rate,
-                learning_rate,hidden_layer, binary=False, **kwargs):
-    # print all arguments
-    # print(f"n_motif: {n_motif}, length_motif: {length_motif}, input_shape: {input_shape}, dropout_rate: {dropout_rate}, learning_rate: {learning_rate}, hidden_layer: {hidden_layer}")
-
-    model = Sequential()
-    model.add(Conv1D(filters=n_motif,
-                     kernel_size=(length_motif,),
-                     strides=STRIDES,
-                     activation='relu',
-                     input_shape=input_shape,
-                    #  kernel_initializer=LogUniformInitializer(motif_initializer_seed),
-                    #  kernel_regularizer=regularizers.l1(motif_regularizer)
-                    )
-                     )
-    model.add(MaxPooling1D(pool_size=(length_motif -  1,)))
-    model.add(Dropout(rate=dropout_rate))
-    model.add(Flatten()) 
-    if hidden_layer:
-        model.add(Dense(units=32,
-                        activation=RELU,
-                        ))
-
-    model.add(Dense(units=1,
-                    activation= SIGMOID if binary else LINEAR,
-                    )) 
-    
-    optimizer = Adam(learning_rate=learning_rate)
-    model.compile(optimizer=optimizer, loss= BinaryCrossentropy() if binary else MSE,
-                   metrics=[__tf_pearson_correlation])
-    return model
-
 
 
 def train_model(model, X_train, y_train, X_test,y_test, learning_steps):
@@ -145,9 +113,13 @@ def train_model(model, X_train, y_train, X_test,y_test, learning_steps):
                             batch_size=BATCH_SIZE,
                             validation_data=(X_val, y_val),
                     callbacks=[early_stopping], verbose=0)
+        print(f"Fold {fold} finished")
     # Evaluate the model on the test set or perform any other required actions
-        train_accuray= model.evaluate(X_test, y_test)
-    return model , evaluation_dict
+    loss, metric= model.evaluate(X_train, y_train)
+    evaluation_dict['validation'] = {'loss': loss, 'metric': metric}
+    loss, metric = model.evaluate(X_test, y_test)
+    evaluation_dict['test'] = {'loss': loss, 'metric': metric}
+    return evaluation_dict
 
 def train_final_model(model, X_train, y_train, X_test, y_test, learning_steps):
     early_stopping = EarlyStopping(monitor='val_loss',
@@ -158,57 +130,43 @@ def train_final_model(model, X_train, y_train, X_test, y_test, learning_steps):
               batch_size=BATCH_SIZE,
               validation_split=0.2,  # Use a validation split instead of cross-validation
               callbacks=[early_stopping], verbose=0)
-    
+    evaluation_dict = {}
     # Evaluate the model on the test set
-    evaluation_dict = eval_model(model, X_test,y_test)
+    loss, metric= model.evaluate(X_train, y_train)
+    evaluation_dict['validation'] = {'loss': loss, 'metric': metric}
+    loss, metric = model.evaluate(X_test, y_test)
+    evaluation_dict['test'] = {'loss': loss, 'metric': metric}
     return model, evaluation_dict
 
 
 def eval_model(model, x,y)->Dict[str,float]:
     test_results = model.evaluate(x, y)
-
-    
     evaluation_dict = {name: value for name, value in zip(model.metrics_names, test_results)}
     return evaluation_dict
 
-def train_with_commet(parameter_dict, commetAPIKey, x_train, y_train, x_test, y_test):
-    projectName = parameter_dict[EXP_ID].split('_')[0]
-    experiment = Experiment(project_name=projectName, api_key= commetAPIKey,)
-    experiment.log_parameters(parameter_dict)
-    model = build_model(**parameter_dict)
- 
-    with experiment.train():
-            model, train_eval_dict = train_model(model, x_train, y_train,
-                                    x_test, y_test, parameter_dict[LEARNING_STEP])
-            experiment.log_metrics(train_eval_dict)
-    with experiment.validate():
-        val_eval_dict = eval_model(model, x_train, y_train)
-        experiment.log_metrics(val_eval_dict)
-    with experiment.test():
-        test_eval_dict = eval_model(model, x_test ,y_test)
-        experiment.log_metrics(test_eval_dict)
-    experiment.end()
-    val_dict = {TRAIN_STR: train_eval_dict, VAL_STR: val_eval_dict, TEST_STR: test_eval_dict}
-    return model, val_dict
 
 
-
-def train_no_commets(parameter_dict, x_train, y_train, x_test, y_test):
-    model = build_model(**parameter_dict)
-    model, train_eval_dict = train_model(model, x_train, y_train,
-                                        x_test, y_test, parameter_dict[LEARNING_STEP])
-    val_eval_dict = eval_model(model, x_train, y_train)
-    test_eval_dict = eval_model(model, x_test ,y_test)
-    val_dict = {TRAIN_STR: train_eval_dict, VAL_STR: val_eval_dict, TEST_STR: test_eval_dict}
-    return model, val_dict
-
-
-def add_model_to_table(model_id, protein, species, experiment, experiment_details, cite,input_shape, source=None):
+def add_model_to_table(model_id, protein, species, experiment, experiment_details, cite, input_shape, source=None):
     """
     add a given model to the model table
     """
-    model = DeepbindModel(protein, species, experiment, experiment_details, cite, model_id,input_shape, 'IB_generated')
-    model.save_model_to_table()
+    model_df = pd.read_csv(MODEL_TABLE, sep='\t')
+    if model_id in model_df[model_df.columns[ID_COL]].values:
+        print(f'model with id {model_id} already exists in the model table')
+        print(f'new model id generated: {model_id}')
+    experiment_details[INPUT_SHAPE] = input_shape
+    new_model_data = {
+        'model_id': model_id,
+        'protein': protein,
+        'species': species,
+        'experiment': experiment,
+        'experiment_details': experiment_details,
+        'cite': cite,
+        'source': source or 'IB_generated'
+    }
+    new_model_df = pd.DataFrame([new_model_data])
+    new_model_df.to_csv(MODEL_TABLE, sep='\t', mode='a', header=False, index=False)
+    return (f'model with id {model_id} saved to the model table - {MODEL_TABLE}')
 
 
 
@@ -241,11 +199,30 @@ def get_parms_dict(input_shape,
     }
 
 
-def run_single_experiment(parameter_dict, commetAPIKey, x_train, y_train, x_test, y_test):
-    if commetAPIKey:
-        return train_with_commet(parameter_dict, commetAPIKey, x_train, y_train, x_test, y_test)
-    else:
-        return train_no_commets(parameter_dict, x_train, y_train, x_test, y_test)
+def fix_metric_name(binary, evaluation_dict):
+    metric_name =  'auc' if binary else 'pearson_correlation'
+    metric_val = evaluation_dict['validation'].pop('metric')
+    evaluation_dict['validation'][metric_name] = metric_val
+    metric_val = evaluation_dict['test'].pop('metric')
+    evaluation_dict['test'][metric_name] = metric_val
+    # evaluation_dict = {f'{key}_train': value for key, value in evaluation_dict.items()}
+    return evaluation_dict
+
+def hyper_parameter_search(conf_dict, model_version, x_train, y_train, x_test, y_test):
+    model = get_model(model_version, conf_dict)
+    learning_step = conf_dict[LEARNING_STEP]
+    evaluation_dict =  train_model(model, x_train, y_train, x_test, y_test, learning_step) 
+    evaluation_dict = fix_metric_name(conf_dict[BINARY], evaluation_dict)
+    return {conf_dict[EXP_ID] : evaluation_dict}
+
+def final_model_training(conf_dict, model_version, x_train, y_train, x_test, y_test):
+    model = get_model(model_version, conf_dict)
+    learning_step = conf_dict[LEARNING_STEP]
+    model, evaluation_dict = train_final_model(model, x_train, y_train, x_test, y_test, learning_step)
+    evaluation_dict = fix_metric_name(conf_dict[BINARY], evaluation_dict)
+
+    return {conf_dict[EXP_ID]:{'score_dict' : evaluation_dict, 'model': model}}
+
 
 def run_expirements(df: pd.DataFrame,train_func):
     if DEBUG:
@@ -299,6 +276,22 @@ def save_models(top_ten_items, results ,  output_dir):
         print(f"Model {cur_model_id} saved to {save_name}")
     
 
+def save_model(model, exp_id,output_dir):
+    save_path = f'{output_dir}/models/submodels'
+    # create directory if not exits
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+    save_name = f'{save_path}/{exp_id}.keras'
+    model.save(save_name)
+    print(f"Model {exp_id} saved to {save_name}")
+
+def save_result_df(df, output_dir,final_result=False):
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    name = 'final' if final_result else 'parameter_search'
+    df.to_csv(f'{output_dir}/{name}_results.csv', index=False)
+    print(f"Results saved to {output_dir}/results.csv")
+
 def save_final_df(df,save_path, model_id):
     if COMMET_API_KEY_ARG in df.columns:
         df.drop(columns=[COMMET_API_KEY_ARG])
@@ -308,8 +301,21 @@ def save_final_df(df,save_path, model_id):
     print(f"Results saved to {save_path}/{model_id}_parameters.csv")
 
 
+
+def create_output_dir(data_id, init=0):
+    dir_name = f'{SAVE_DIR}/{data_id}.{init}'
+    if not os.path.exists(dir_name):
+        os.makedirs(dir_name)
+        return dir_name
+    return create_output_dir(data_id, init+1)
+    
+
+def get_output_dir(model_id):
+    return f'{SAVE_DIR}/{model_id}'
+
+
 def get_n_save_final_df(results:list,config_df:pd.DataFrame, model_id:str, same_data:bool):
-    output_dir = f'{SAVE_DIR}/{model_id}'
+    output_dir = get_output_dir(model_id)
     score_df = [pd.DataFrame(pd.json_normalize(result['score_dict']).squeeze().rename(result[EXP_ID])).T for result in results]
 
     score_df = pd.concat(score_df)
@@ -340,34 +346,34 @@ def process_result(results, df, model_id,top_n=10):
     save_models(top_ten_items, results, output_dir)
 
 
-def run_single_deepBind_expirement(row, X_train, y_train, X_test, y_test, version, final):
-    parameter_dict = get_parms_dict(X_train.shape[1:], row[TRAIN_SET],
-                                    row[TEST_SET], row[LEARNING_RATE],
-                                    row[N_MOTIF], row[LENGTH_MOTIF],
-                                    row[DROPOUT_RATE], row[HIDDEN_LAYER],
-                                    row[LEARNING_STEP], row[EXP_ID],row[BINARY])
+# def run_single_deepBind_expirement(row, X_train, y_train, X_test, y_test, version, final):
+#     parameter_dict = get_parms_dict(X_train.shape[1:], row[TRAIN_SET],
+#                                     row[TEST_SET], row[LEARNING_RATE],
+#                                     row[N_MOTIF], row[LENGTH_MOTIF],
+#                                     row[DROPOUT_RATE], row[HIDDEN_LAYER],
+#                                     row[LEARNING_STEP], row[EXP_ID],row[BINARY])
 
-    model = get_model(version, parameter_dict)
-    train_func = train_final_model if final else train_model
-    model, train_eval_dict = train_func(model, X_train, y_train, X_test, y_test, parameter_dict[LEARNING_STEP])
-    val_eval_dict = eval_model(model, X_train, y_train)
-    test_eval_dict = eval_model(model, X_test, y_test)
-    val_dict = {TRAIN_STR: train_eval_dict, VAL_STR: val_eval_dict, TEST_STR: test_eval_dict}
+#     model = get_model(version, parameter_dict)
+#     train_func = train_final_model if final else train_model
+#     model, train_eval_dict = train_func(model, X_train, y_train, X_test, y_test, parameter_dict[LEARNING_STEP])
+#     val_eval_dict = eval_model(model, X_train, y_train)
+#     test_eval_dict = eval_model(model, X_test, y_test)
+#     val_dict = {TRAIN_STR: train_eval_dict, VAL_STR: val_eval_dict, TEST_STR: test_eval_dict}
 
-    if DEBUG:
-        print(f"finished expirement {row[EXP_ID]}")
+#     if DEBUG:
+#         print(f"finished expirement {row[EXP_ID]}")
 
-    return {EXP_ID: row[EXP_ID], 'model': model, 'score_dict': val_dict}
+#     return {EXP_ID: row[EXP_ID], 'model': model, 'score_dict': val_dict}
 
 
-def run_deepBind_expiriment(df, X_train,y_train, X_test ,y_test, obj_model, version, final):
+# def run_deepBind_expiriment(df, X_train,y_train, X_test ,y_test, obj_model, version, final):
 
-    exp_id = obj_model.get_id()
-    with concurrent.futures.ProcessPoolExecutor() as executor:
-        # Submit each configuration to the executor for parallel execution
-        futures = [executor.submit(run_single_deepBind_expirement, row,  X_train,y_train, X_test ,y_test, version, final) for _,row in df.iterrows()]
-        results = [future.result() for future in concurrent.futures.as_completed(futures)]
+#     exp_id = obj_model.get_id()
+#     with concurrent.futures.ProcessPoolExecutor() as executor:
+#         # Submit each configuration to the executor for parallel execution
+#         futures = [executor.submit(run_single_deepBind_expirement, row,  X_train,y_train, X_test ,y_test, version, final) for _,row in df.iterrows()]
+#         results = [future.result() for future in concurrent.futures.as_completed(futures)]
     
-    return exp_id, df, results, obj_model
+#     return exp_id, df, results, obj_model
 
 

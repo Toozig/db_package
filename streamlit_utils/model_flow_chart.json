@@ -1,0 +1,3 @@
+{"original_DB": "graph LR\nA[Input] --> B[Conv1D]\nB --> C[MaxPooling1D]\nC --> D[Dropout]\nD --> E[Flatten]\nE -- if hidden_layer ---> F[Dense]\nE -- no hidden\nlayer ---> G\nF --> G[Dense]\nG --> H[Output]",
+"original_v2":"graph LR\nA[Input] --> B[Conv1D ]\nB --> C[GlobalMaxPooling1D]\nC --> D[Dropout]\nD -- if hidden_layer ---> E[Dense]\nD -- no hidden\n layer ---> F\nE --> F[Dense]\nF --> G[Output]",
+"fcn_model": "graph LR\nA[Input] --> B[Conv1D]\nB --> C[MaxPooling1D]\nC --> D[Dropout]\nD --> E[TimeDistributedn\n Dense]\nE --> F[LSTM]\nF -- if hidden\nlayer ---> G[Dense]\nF -- no hidden\n layer ---> H\nG --> H[Dense]\nH --> I[Output]"}
