@@ -23,6 +23,12 @@ DSD_TF_LIST = [i.strip() for i in DSD_TF_LIST]
 HG38_FASTA = os.path.join(PACKAGE_ROOT, '/home/dsi/toozig/yaron_lab_dir/deepBind_pipeline/streamlit_app/hg38.fa')
 MM10_FASTA = os.path.join(PACKAGE_ROOT, '/home/dsi/toozig/yaron_lab_dir/deepBind_pipeline/streamlit_app/mm10.fa')
 
+def get_hg38_fasta():
+    return HG38_FASTA
+
+def get_mm10_fasta():
+    return MM10_FASTA
+
 
 def get_data_dir():
     return DATA_DIR
