@@ -1,12 +1,20 @@
 import os
 import numpy as np
 import pandas as pd
-import sys
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
-from ..db_train_utils.train_global_args import *
+import sys
+if 'config' not in  sys.modules:
+    sys.path.append(os.path.dirname(__file__))
+    from  .. import  config 
+else:
+    import config 
 
-import concurrent.futures
+import sys
+# print all path in python path
+for i, path in enumerate(sys.path):
+    print(f'{i}: {path}')
+import  db_train_utils
 
 SAVE_DIR = '/dsi/gonen-lab/users/toozig/projects/deepBind_pipeline/DB_predictions'
 ORIGINAL = 'db_original'
@@ -14,16 +22,17 @@ GENERATED = 'IB_generated'
 IB_MODEL_RESULT = f'{SAVE_DIR}/{GENERATED}'
 ORIGINAL_MODEL_RESULT = f'{SAVE_DIR}/{ORIGINAL}'
 ORIGINAL_WINDOW_SIZE = 16
+MAX_ID_LEN = 100
+
+# need for IB_function and original_funcrion
 N_PROCESS = 90
 SHIFT_PARAM = 4
 DEBUG = False
-MAX_ID_LEN = 100
 
 TMP_SAVE_PATH = '/tmp/deepbind/'
-MODEL_TABLE = '/dsi/gonen-lab/users/toozig/projects/deepBind_pipeline/deepBind_run/models/model_table.tsv'
-OUTPUT_DIR= '/dsi/gonen-lab/users/toozig/projects/deepBind_pipeline/deepBind_run/models'
-SAVE_DIR = f'{OUTPUT_DIR}/IB_models'
-MODEL_TABLE = f'{OUTPUT_DIR}/model_table.tsv'
+MODEL_TABLE =  config.get_model_table_path()
+SAVE_DIR = config.get_IB_model_path()
+
 
 
 
@@ -34,6 +43,8 @@ def get_model_df(protein_list=[], all_models=False):
     """
     protein_list = [i.lower() for i in protein_list]
     model_df = pd.read_csv(MODEL_TABLE, sep='\t', comment='#')
+    # sort byt protein name
+    model_df = model_df.sort_values('protein')
     if all_models or not len(protein_list):
         return model_df
     model_df['protein'] = model_df['protein'].str.lower()

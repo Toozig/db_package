@@ -1,11 +1,17 @@
-from abc import ABC, abstractmethod
 from pydantic import BaseModel
-from .train_global_args import MODEL_TABLE
+import sys
 import pandas as pd
+import os
+if 'config' not in  sys.modules:
+
+    sys.path.append(os.path.dirname(__file__))
+    from  .. import  config 
+else:
+    import config 
 
 
 ID_COL = 0
-
+MODEL_TABLE = config.get_model_table_path()
 class DeepBindData(BaseModel):
     protein : str
     species: str

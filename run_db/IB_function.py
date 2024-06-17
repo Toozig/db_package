@@ -1,5 +1,4 @@
 from Bio import SeqIO
-import re
 from tqdm import tqdm
 import numpy as np
 from keras import backend as K
@@ -10,30 +9,33 @@ from tensorflow import convert_to_tensor
 
 import os
 import concurrent
-from .run_general import get_reversed_record, GENERATED, DEBUG, SHIFT_PARAM, fasta_from_seq_record, save_prediction_df
 import pandas as pd
 import ast
 from tqdm import tqdm
-from ..predictionArchiver.predictionArchiver import PredictionSaver
-from ..db_train_utils.db_train_utils import oneHot_encode
+import sys
+# add curren folde rto python path
+# check if 'config' is available model if yes import it directly if not import it from the current folder
+
+if 'config' not in  sys.modules:
+    sys.path.append(os.path.dirname(__file__))
+    from  .. import  config 
+else:
+    import config 
+# print all the available python pahth
+
+from .run_general import  GENERATED, fasta_from_seq_record
+from predictionArchiver_pkg.predictionArchiver import PredictionSaver
+from ..db_train_utils import oneHot_encode
 from ..db_train_utils.train_global_args import *
-import configparser
-
-config = configparser.ConfigParser()
-cur_dir = os.path.dirname(__file__)
-# set the work dir to this dir
-os.chdir(cur_dir)
-config.read('../config.ini')
 
 
-BASE_PATH = config['MODEL_RUN']['BASE_PATH']
+BASE_PATH = config.get_IB_model_path()
 
 IB_MODEL_PATH = f'{BASE_PATH}/%s/models'
 IB_MODEL_PATH2 = f'{BASE_PATH}/%s/models/%s.keras'
 N_PROCESS = 5
 
-# IB_MODEL_PATH ='/dsi/gonen-lab/users/toozig/projects/deepBind_pipeline/deepBind_run/models/IB_models/%s/models'
-# IB_MODEL_PATH2 ='/dsi/gonen-lab/users/toozig/projects/deepBind_pipeline/deepBind_run/models/IB_models/%s/models/%s.keras'
+
 MODEL_PARMS = [EXP_ID,N_MOTIF, LENGTH_MOTIF, DROPOUT_RATE, LEARNING_RATE, HIDDEN_LAYER, BINARY]
 DEBUG = False
 

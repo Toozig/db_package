@@ -1,6 +1,15 @@
 import json
 import os
-ZSCORE_JSON = '/home/dsi/toozig/gonen-lab/users/toozig/projects/deepBind_pipeline/deepBind_run/models/model_zscore.json'
+
+import sys
+if 'config' not in  sys.modules:
+    sys.path.append(os.path.dirname(__file__))
+    from  .. import  config 
+else:
+    import config 
+
+
+ZSCORE_JSON = config.get_zscore_json_path()
 from .IB_function import get_IB_model_prediction2
 
 def calc_IB_zscore_params(model_id, X):

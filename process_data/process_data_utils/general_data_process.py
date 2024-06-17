@@ -10,18 +10,18 @@ import pandas as pd
 import os
 import shutil
 import numpy as np
-
+from ... import config
 
 script_dir = os.path.dirname(os.path.realpath(__file__))
 
 SUBMISSION_DIR = os.path.join(script_dir, 'Leaderboard_aaa_submissions')
 CATEGORY_FILE = os.path.join(SUBMISSION_DIR, "%s_aaa_random.tsv")
-DATA_DIR = '/home/dsi/toozig/gonen-lab/users/toozig/projects/deepBind_pipeline/streamlit_app/pages/db_package/process_data/data'
+DATA_DIR = config.get_data_dir()
 DATA_DB = f'{DATA_DIR}/data_db.json'
 HG38_ZIP_PATH =  '/dsi/gonen-lab/shared_files/WGS_on_DSD/data/refrence_genome/hg38/hg38.fa.gz'
 MM10_ZIP_PATH =  '/dsi/gonen-lab/shared_files/WGS_on_DSD/data/refrence_genome/mm10/GCA_000001635.8_GRCm38.p6_genomic.fna.gz'
-HG38_PATH = '/tmp/toozig/hg38.fa'
-MM10_PATH = '/dsi/gonen-lab/shared_files/WGS_on_DSD/data/refrence_genome/mm10/mm10.fa'
+HG38_PATH = './hg38.fa'
+MM10_PATH = './mm10.fa'
 
 
 GENOME_DICT = {'hg38': HG38_PATH,

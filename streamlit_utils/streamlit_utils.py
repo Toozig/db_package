@@ -10,7 +10,7 @@ import streamlit.components.v1 as components
 import pages.db_package.process_data.process_data_utils.pbm_data_prep as pbu
 
 
-FLOW_CHART_PATH = '/home/dsi/toozig/gonen-lab/users/toozig/projects/deepBind_pipeline/streamlit_app/pages/db_package/streamlit_utils/model_flow_chart.json'
+FLOW_CHART_PATH = 'pages/db_package/streamlit_utils/model_flow_chart.json'
 
 def check_bed_file(bed_file, title):
     st.write(title)

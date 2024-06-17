@@ -19,6 +19,17 @@ from tensorflow.keras.layers import MaxPooling1D
 
 from .model_design import get_model
 import os
+import sys
+
+if 'config' not in  sys.modules:
+
+    sys.path.append(os.path.dirname(__file__))
+    from  .. import  config 
+else:
+    import config 
+
+
+
 ## variables
 # numbers od strides for the convolution layer
 STRIDES = 1
@@ -34,9 +45,8 @@ BATCH_SIZE = 64
 # model table cols
 ID_COL = 0
 
-
-MODEL_PATH = '/dsi/gonen-lab/users/toozig/projects/deepBind_pipeline/deepBind_run/models/IB_models'
-
+MODEL_PATH = config.get_IB_model_path()
+MODEL_TABLE = config.get_model_table_path()
 
 YARON_PARMS = {
     N_MOTIF : 128,
@@ -64,16 +74,6 @@ def copy_model_data(json_path, model_id):
     os.makedirs(new_path, exist_ok=True)
     os.system(f'cp {file_path} {new_path}/.')
 
-# def create_comet_project(commet_API,TF_name):
-#     api = comet_ml.api.API(commet_API)
-#     workspace = api.get('deepBind')
-#     if TF_name.lower() in workspace:
-#         print(f"Project {TF_name} already exists")
-#         return
-#     description = f"DeepBind model for {TF_name} "
-
-#     api.create_project('deepBind', project_name=TF_name, project_description=description,
-#         public=True)
 
 @register_keras_serializable()
 def __tf_pearson_correlation(y_true, y_pred): 
@@ -94,7 +94,7 @@ def __tf_pearson_correlation(y_true, y_pred):
     return K.mean(r)
 
 
-def train_model(model, X_train, y_train, X_test,y_test, learning_steps):
+def train_model_k_fold(model, X_train, y_train, X_test,y_test, learning_steps):
     # print the shape of the data
 
     early_stopping = EarlyStopping(monitor='val_loss',
@@ -121,7 +121,7 @@ def train_model(model, X_train, y_train, X_test,y_test, learning_steps):
     evaluation_dict['test'] = {'loss': loss, 'metric': metric}
     return evaluation_dict
 
-def train_final_model(model, X_train, y_train, X_test, y_test, learning_steps):
+def regular_train(model, X_train, y_train, X_test, y_test, learning_steps):
     early_stopping = EarlyStopping(monitor='val_loss',
                                    patience=5, verbose=0, 
                                    restore_best_weights=True)
@@ -171,8 +171,6 @@ def add_model_to_table(model_id, protein, species, experiment, experiment_detail
 
 
 
-
-
 def get_parms_dict(input_shape,
     train_set,
     test_set,
@@ -211,17 +209,26 @@ def fix_metric_name(binary, evaluation_dict):
 def hyper_parameter_search(conf_dict, model_version, x_train, y_train, x_test, y_test):
     model = get_model(model_version, conf_dict)
     learning_step = conf_dict[LEARNING_STEP]
-    evaluation_dict =  train_model(model, x_train, y_train, x_test, y_test, learning_step) 
+    evaluation_dict =  train_model_k_fold(model, x_train, y_train, x_test, y_test, learning_step) 
     evaluation_dict = fix_metric_name(conf_dict[BINARY], evaluation_dict)
+    return {conf_dict[EXP_ID] : evaluation_dict}
+
+
+def middle_model_training(conf_dict, model_version, x_train, y_train, x_test, y_test):
+    model = get_model(model_version, conf_dict)
+    learning_step = conf_dict[LEARNING_STEP]
+    model, evaluation_dict = regular_train(model, x_train, y_train, x_test, y_test, learning_step)
+    evaluation_dict = fix_metric_name(conf_dict[BINARY], evaluation_dict)
+
     return {conf_dict[EXP_ID] : evaluation_dict}
 
 def final_model_training(conf_dict, model_version, x_train, y_train, x_test, y_test):
     model = get_model(model_version, conf_dict)
     learning_step = conf_dict[LEARNING_STEP]
-    model, evaluation_dict = train_final_model(model, x_train, y_train, x_test, y_test, learning_step)
+    model, evaluation_dict = regular_train(model, x_train, y_train, x_test, y_test, learning_step)
     evaluation_dict = fix_metric_name(conf_dict[BINARY], evaluation_dict)
 
-    return {conf_dict[EXP_ID]:{'score_dict' : evaluation_dict, 'model': model}}
+    return {conf_dict[EXP_ID] : evaluation_dict},  model
 
 
 def run_expirements(df: pd.DataFrame,train_func):
@@ -243,13 +250,7 @@ def run_expirements(df: pd.DataFrame,train_func):
         return results_list
     
 
-
-
 ### RESULT PROCESSING #####
-
-# need to delete this and take the one from deepbing_global_args
-SAVE_DIR = '/dsi/gonen-lab/users/toozig/projects/deepBind_pipeline/deepBind_run/models/IB_models'
-
 
 
 def prepare__score_df(results):
@@ -285,10 +286,9 @@ def save_model(model, exp_id,output_dir):
     model.save(save_name)
     print(f"Model {exp_id} saved to {save_name}")
 
-def save_result_df(df, output_dir,final_result=False):
+def save_result_df(df, output_dir,name) : #final_result=False):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    name = 'final' if final_result else 'parameter_search'
     df.to_csv(f'{output_dir}/{name}_results.csv', index=False)
     print(f"Results saved to {output_dir}/results.csv")
 
@@ -303,7 +303,7 @@ def save_final_df(df,save_path, model_id):
 
 
 def create_output_dir(data_id, init=0):
-    dir_name = f'{SAVE_DIR}/{data_id}.{init}'
+    dir_name = f'{MODEL_PATH}/{data_id}.{init}'
     if not os.path.exists(dir_name):
         os.makedirs(dir_name)
         return dir_name
@@ -311,7 +311,7 @@ def create_output_dir(data_id, init=0):
     
 
 def get_output_dir(model_id):
-    return f'{SAVE_DIR}/{model_id}'
+    return f'{MODEL_PATH}/{model_id}'
 
 
 def get_n_save_final_df(results:list,config_df:pd.DataFrame, model_id:str, same_data:bool):
@@ -340,7 +340,7 @@ def process_result(results, df, model_id,top_n=10):
         # print(results)
     top_ten_items = list(sorted(score_model_dict.items(), key=lambda x: x[0], reverse=True))[:top_n]
     # save top 10 models
-    output_dir = f'{SAVE_DIR}/{model_id}'
+    output_dir = f'{MODEL_PATH}/{model_id}'
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     save_models(top_ten_items, results, output_dir)

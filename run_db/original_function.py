@@ -5,7 +5,7 @@ from io import StringIO
 import subprocess
 from .run_general import  get_reversed_record,fasta_from_seq_record,save_prediction_df, ORIGINAL, ORIGINAL_WINDOW_SIZE, DEBUG, N_PROCESS
 import concurrent
-from predictionArchiver import PredictionSaver
+from predictionArchiver_pkg.predictionArchiver import PredictionSaver
 
 TMP_SAVE_PATH = '/tmp/deepbind/'
 

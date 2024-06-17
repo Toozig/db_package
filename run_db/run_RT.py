@@ -2,25 +2,20 @@ import numpy as np
 import pandas as pd
 import concurrent.futures
 import os
-
 from Bio.SeqRecord import SeqRecord
 from Bio.Seq import Seq
 from Bio import SeqIO
-## set the sworkdir tto the file folder
-os.chdir(os.path.dirname(__file__))
 
-from .run_general import get_subsequences, fasta_from_seq_string, get_model_df
-from .IB_function import get_IB_model_prediction, get_input_shape, get_IB_models
-from ..db_train_utils import oneHot_encode
-from .original_function import get_original_model_prediction, save_model_list
-from ..db_train_utils.model_design import get_ensemble_model 
-from .process_P2 import aggregate_postion_score 
+from .. import config
+from run_db.run_general import get_subsequences, fasta_from_seq_string, get_model_df
+from run_db.IB_function import get_IB_model_prediction, get_input_shape, get_IB_models
+from db_train_utils import oneHot_encode
+from run_db.original_function import get_original_model_prediction, save_model_list
+from db_train_utils.model_design import get_ensemble_model 
+from run_db.process_P2 import aggregate_postion_score 
 import os
-import configparser
 
-config = configparser.ConfigParser()
-config.read('../config.ini')
-TMP_DIR =config['GENERAL']['TMP_DIR'] 
+TMP_DIR = config.get_tmp_dir()
 N_PROCESS=60
 
 

@@ -30,6 +30,5 @@ DENSE2_OUTPUT = 'dense2_output'
 
 
 
-OUTPUT_DIR= '/dsi/gonen-lab/users/toozig/projects/deepBind_pipeline/deepBind_run/models'
-SAVE_DIR = f'{OUTPUT_DIR}/IB_models'
-MODEL_TABLE = f'{OUTPUT_DIR}/model_table.tsv'
+# OUTPUT_DIR= '/dsi/gonen-lab/users/toozig/projects/deepBind_pipeline/deepBind_run/models'
+# SAVE_DIR = f'{OUTPUT_DIR}/IB_models'

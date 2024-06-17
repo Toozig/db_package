@@ -2,7 +2,10 @@ import os
 import numpy as np
 import pandas as pd
 import re
-from predictionArchiver import PredictionSaver
+import sys
+sys.path.append(os.path.dirname(__file__))
+import config 
+from predictionArchiver_pkg.predictionArchiver import PredictionSaver
 
 
 def generate_base_matrix(seq_len, window, shift, n_prediction):
